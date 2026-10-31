@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "J.A.R.V.I.S. HUD",
+    "description": "Full-screen boot scan with a self-check list, persistent reticle corners, and synthesized speech that follows verification, tool runs, completion, and errors."
+  }
+}
