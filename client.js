@@ -60,7 +60,12 @@ window.__ModuleLoader__.load({
     };
 
     /* A dust ring around the core, laid out by angle so the particles form a
-     * band rather than a perfect circle; each one twinkles on its own clock. */
+     * band rather than a perfect circle. Idle: every particle twinkles on its
+     * own clock. Generating: the delays become a function of angle and radius,
+     * so one bright crest travels around the band while a second, softer one
+     * follows outward from the centre. */
+    const WAVE_PERIOD = 1.15;
+
     const PARTICLES = (function buildParticles() {
       const items = [];
       const total = 120;
@@ -68,12 +73,14 @@ window.__ModuleLoader__.load({
         const band = index % 6 === 0 ? 47 : index % 3 === 0 ? 44 : 40;
         const radius = band + ((index * 13) % 9) - 4;
         const angle = (index / total) * Math.PI * 2 + (index % 7) * 0.08;
+        const wave = (index / total) * WAVE_PERIOD + ((radius - 37) / 12) * 0.22;
         items.push({
           x: Math.round((50 + Math.cos(angle) * radius) * 100) / 100,
           y: Math.round((50 + Math.sin(angle) * radius) * 100) / 100,
           size: Math.round((1.2 + ((index * 7) % 5) * 0.6) * 100) / 100,
           duration: Math.round((2 + ((index * 5) % 9) * 0.35) * 100) / 100,
           delay: Math.round(((index * 11) % 17) * 0.19 * 100) / 100,
+          wave: Math.round(wave * 1000) / 1000,
           peak: Math.round((0.45 + ((index * 3) % 6) * 0.09) * 100) / 100,
         });
       }
@@ -788,6 +795,7 @@ window.__ModuleLoader__.load({
                   height: particle.size + 'px',
                   '--tw': particle.duration + 's',
                   '--td': particle.delay + 's',
+                  '--wd': particle.wave + 's',
                   '--po': particle.peak,
                 },
               });
@@ -1148,8 +1156,10 @@ window.__ModuleLoader__.load({
          shimmers instead of blinking in unison; the whole band drifts around
          the centre and speeds up while the model runs. */
       '.jh-energy{position:absolute;left:50%;top:50%;width:420px;height:420px;margin:-210px 0 0 -210px;',
-      '--jh-energy-rgb:150,244,255;opacity:.2;mix-blend-mode:screen;transition:opacity .9s ease;pointer-events:none}',
-      '.jh-chat--active .jh-energy{opacity:.75}',
+      '--jh-energy-rgb:150,244,255;opacity:.2;mix-blend-mode:screen;pointer-events:none;',
+      'transition:opacity .9s ease,transform .6s ease}',
+      '.jh-chat--active .jh-energy{opacity:.75;animation:jh-e-throb 1.9s ease-in-out infinite}',
+      '@keyframes jh-e-throb{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}',
       '.jh-energy-halo{position:absolute;inset:0;border-radius:50%;',
 
       'background:radial-gradient(circle,rgba(var(--jh-energy-rgb),.26) 0%,rgba(var(--jh-energy-rgb),.09) 28%,rgba(var(--jh-energy-rgb),.03) 48%,transparent 66%);',
@@ -1157,14 +1167,24 @@ window.__ModuleLoader__.load({
       '@keyframes jh-e-breathe{0%,100%{transform:scale(.97);opacity:.75}50%{transform:scale(1.04);opacity:1}}',
       '.jh-chat--active .jh-energy-halo{animation-duration:2.2s}',
       '.jh-dust{position:absolute;inset:0;animation:jh-e-drift 90s linear infinite}',
-      '.jh-chat--active .jh-dust{animation-duration:16s}',
+      '.jh-chat--active .jh-dust{animation-duration:24s}',
       '@keyframes jh-e-drift{to{transform:rotate(360deg)}}',
       '.jh-particle{position:absolute;border-radius:50%;background:rgba(208,250,255,.92);',
       'box-shadow:0 0 4px 1px rgba(var(--jh-energy-rgb),.7),0 0 10px 2px rgba(var(--jh-energy-rgb),.22);',
       'animation:jh-e-twinkle var(--tw,3s) ease-in-out infinite;animation-delay:var(--td,0s);will-change:opacity,transform}',
       '@keyframes jh-e-twinkle{0%,100%{opacity:calc(var(--po,.8) * .14);transform:translate(-50%,-50%) scale(.55)}',
       '50%{opacity:var(--po,.8);transform:translate(-50%,-50%) scale(1.25)}}',
-      '.jh-chat--active .jh-particle{animation-duration:calc(var(--tw,3s) * .42)}',
+      /* Generating: the delay comes from the particle's angle and radius, so a
+         single crest sweeps around the band instead of every dot pulsing on
+         its own. Removing the active class restores the idle twinkle. */
+      '.jh-chat--active .jh-particle{animation-name:jh-e-wave;animation-duration:' + WAVE_PERIOD + 's;',
+      'animation-delay:var(--wd,0s);animation-timing-function:ease-in-out;',
+      'box-shadow:0 0 6px 2px rgba(var(--jh-energy-rgb),.85),0 0 16px 4px rgba(var(--jh-energy-rgb),.3)}',
+      '@keyframes jh-e-wave{',
+      '0%{opacity:calc(var(--po,.8) * .1);transform:translate(-50%,-50%) scale(.42)}',
+      '38%{opacity:calc(var(--po,.8) * 1);transform:translate(-50%,-50%) scale(1.75)}',
+      '60%{opacity:calc(var(--po,.8) * .85);transform:translate(-50%,-50%) scale(1.3)}',
+      '100%{opacity:calc(var(--po,.8) * .12);transform:translate(-50%,-50%) scale(.45)}}',
       '.jh-energy-dot{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;',
       'background:#eafcff;box-shadow:0 0 12px 4px rgba(var(--jh-energy-rgb),.55),0 0 34px 12px rgba(var(--jh-energy-rgb),.2);',
       'animation:jh-e-breathe 3.6s ease-in-out infinite}',
@@ -1172,7 +1192,7 @@ window.__ModuleLoader__.load({
 
       '@media (prefers-reduced-motion: reduce){',
       '.jh-grid,.jh-scan,.jh-sweep,.jh-ring,.jh-corner,.jh-check--lit .jh-dot,.jh-title,.jh-chip-dot,.jh-pulse,',
-      '.jh-cwave,.jh-energy-halo,.jh-dust,.jh-particle,.jh-energy-dot{animation:none!important}',
+      '.jh-cwave,.jh-energy,.jh-energy-halo,.jh-dust,.jh-particle,.jh-energy-dot{animation:none!important}',
       '.jh-hud .jh-corner{opacity:.16}}',
     ].join('');
 
